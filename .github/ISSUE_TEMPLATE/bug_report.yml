@@ -1,0 +1,22 @@
+name: Bug report
+description: Report a reproducible problem
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include what you expected and exact reproduction steps.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Game branch and mod/framework/UE4SS versions
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Relevant log excerpt
+      description: Remove personal information. Do not attach saves or full game files.
+      render: text

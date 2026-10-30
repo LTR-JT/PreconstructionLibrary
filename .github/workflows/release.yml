@@ -1,0 +1,33 @@
+name: Draft release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag, for example v15.18.1
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  draft:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python Tools/build_ci_lua.py
+      - run: python Tools/check.py --lua Tests/ci-lua/lua.exe
+      - run: python Tools/build_native.py
+      - run: python Tools/package_release.py
+      - name: Verify the tag matches the package version
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: python -c "import os,json; assert os.environ['RELEASE_TAG']=='v'+json.load(open('mod.json'))['version']"
+      - name: Create draft prerelease with artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: gh release create "$env:RELEASE_TAG" Releases/*.zip Releases/mod.json Releases/SHA256SUMS.txt --verify-tag --draft --prerelease --title "PreconstructionLibrary $env:RELEASE_TAG" --notes-file RELEASE_NOTES.md

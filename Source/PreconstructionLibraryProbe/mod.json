@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "PreconstructionLibraryProbe",
+  "name": "Preconstruction Library",
+  "version": "15.18.1",
+  "author": "LTR-JT and contributors",
+  "api": "^1.0.0",
+  "dependencies": {
+    "BladesongModFramework": "^0.1.3"
+  },
+  "description": "Parts and blade libraries using framework compatibility adapters",
+  "capabilities": [
+    "forge.read",
+    "game.state"
+  ],
+  "repository": "https://github.com/LTR-JT/PreconstructionLibrary",
+  "license": "MIT"
+}

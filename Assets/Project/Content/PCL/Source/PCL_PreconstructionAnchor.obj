@@ -1,0 +1,16 @@
+# PCL 1cm cube: attachment origin at back face X=0; front snap face X=1
+o PCL_PreconstructionAnchor
+v 0 -0.5 -0.5
+v 1 -0.5 -0.5
+v 1 0.5 -0.5
+v 0 0.5 -0.5
+v 0 -0.5 0.5
+v 1 -0.5 0.5
+v 1 0.5 0.5
+v 0 0.5 0.5
+f 4 3 2 1
+f 6 7 8 5
+f 2 6 5 1
+f 3 7 6 2
+f 4 8 7 3
+f 8 4 1 5

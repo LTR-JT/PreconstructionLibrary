@@ -1,0 +1,22 @@
+{
+  "mesh_half_extent_cm": 0.5,
+  "asset_path": "/Game/PCL/Anchor",
+  "mesh_name": "SM_PCL_PreconstructionAnchor",
+  "blueprint_name": "BP_PCL_PreconstructionAnchor",
+  "attach_socket": {
+    "name": "PCL_Attach",
+    "location": [
+      1,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ]
+  },
+  "revision": "15.17.38",
+  "build_scope": "anchor",
+  "material_name": "M_PCL_AnchorCyan"
+}
