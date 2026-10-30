@@ -2,11 +2,11 @@
   "schema_version": 1,
   "id": "PreconstructionLibraryProbe",
   "name": "Preconstruction Library",
-  "version": "15.18.1",
+  "version": "15.18.2",
   "author": "LTR-JT and contributors",
   "api": "^1.0.0",
   "dependencies": {
-    "BladesongModFramework": "^0.1.3"
+    "BladesongModFramework": "^0.1.4"
   },
   "description": "Parts and blade libraries using framework compatibility adapters",
   "capabilities": [

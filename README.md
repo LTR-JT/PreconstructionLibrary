@@ -7,7 +7,7 @@ Manage your library in the Forge or browse it from Creative Mode.
 
 - Bladesong on a supported Main or Bleeding Edge executable.
 - A compatible [UE4SS runtime](https://github.com/UE4SS-RE/RE-UE4SS).
-- [Bladesong Mod Framework](https://github.com/LTR-JT/BladesongModFramework) 0.1.3+.
+- [Bladesong Mod Framework](https://github.com/LTR-JT/BladesongModFramework) 0.1.4+.
 
 Close the game, install the framework, then extract the PCL **runtime ZIP from
 Releases** into the outer game folder beside `Bladesong.exe`. GitHub's automatic
@@ -33,6 +33,9 @@ multi-delete. Browsing a PCL entry there does not open the Forge.
 Game-save backups are kept separately before protected operations. Preserve
 your existing saves and `preconstructions`/blade library folders when upgrading.
 
+The framework owns the Creative screen layout, tabs, search, footer and multi-delete.
+PCL registers its library content and actions with that shared menu.
+
 ## Development
 
 The checked-in `Source/PreconstructionLibraryProbe` is the runtime source of
@@ -47,7 +50,7 @@ python Tools/package_release.py
 ```
 
 See [build notes](Documentation/building.md), [troubleshooting](Documentation/troubleshooting.md),
-and [contributing](CONTRIBUTING.md). Current runtime: **15.18.1**. This is a community
+and [contributing](CONTRIBUTING.md). Current runtime: **15.18.2**. This is a community
 preview; future game versions may need framework adapter updates.
 
 ## License
