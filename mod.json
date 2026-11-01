@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "PreconstructionLibraryProbe",
   "name": "Preconstruction Library",
-  "version": "15.18.2",
+  "version": "15.18.3",
   "author": "LTR-JT and contributors",
   "api": "^1.0.0",
   "dependencies": {
@@ -14,5 +14,19 @@
     "game.state"
   ],
   "repository": "https://github.com/LTR-JT/PreconstructionLibrary",
-  "license": "MIT"
+  "license": "MIT",
+  "release_source": {
+    "type": "github",
+    "repository": "https://github.com/LTR-JT/PreconstructionLibrary"
+  },
+  "dependency_sources": {
+    "BladesongModFramework": "https://github.com/LTR-JT/BladesongModFramework"
+  },
+  "runtime_components": {
+    "UE4SS": "*"
+  },
+  "package": {
+    "format": "bladesong-mod-1",
+    "target": "ue4ss-mods"
+  }
 }
