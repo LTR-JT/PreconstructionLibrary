@@ -1,9 +1,8 @@
 """Build pinned upstream Lua in CI; not part of player installation."""
-import hashlib,os,subprocess,tarfile,urllib.request,shutil
+import hashlib,os,subprocess,tarfile,shutil
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];target=ROOT/'Tests/ci-lua';target.mkdir(exist_ok=True)
-archive=target/'lua.tar.gz'
-urllib.request.urlretrieve('https://www.lua.org/ftp/lua-5.4.8.tar.gz',archive)
+archive=Path(__file__).with_name('lua-5.4.8.tar.gz')
 assert hashlib.sha256(archive.read_bytes()).hexdigest()=='4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae'
 with tarfile.open(archive)as t:
  for member in t.getmembers():

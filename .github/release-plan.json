@@ -1,5 +1,5 @@
 {
   "publish": true,
   "version": "15.18.4",
-  "reason": "Publish Forge tab and cached prefab placement fixes"
+  "reason": "Publish Forge tab and cached prefab placement fixes using pinned Lua source for CI"
 }
