@@ -70,7 +70,7 @@ local function log(msg)
     print(PREFIX .. tostring(msg) .. "\n")
 end
 
-PCL151714_OBJECT_PATHS = {}
+PCL151714_OBJECT_PATHS = setmetatable({}, {__mode="k"})
 log('PCL_RUNTIME_VERSION=15.17.62 menu=native_sections_names_and_local_cache import_and_socket=15.17.20')
 local function is_valid(obj)
     if obj == nil then return false end
@@ -91,20 +91,20 @@ local function is_valid(obj)
         return true
     end
     local memo = PCL151715_VALIDATION_CACHE
-    if memo ~= nil and memo[address] ~= nil then return memo[address] end
-    local path = PCL151714_OBJECT_PATHS[address]
+    if memo ~= nil and memo[obj] ~= nil then return memo[obj] end
+    local path = PCL151714_OBJECT_PATHS[obj]
     if path ~= nil then
         local found_ok, found = pcall(function() return StaticFindObject(path) end)
         if not found_ok or found == nil then
-            if memo ~= nil then memo[address] = false end
+            if memo ~= nil then memo[obj] = false end
             return false
         end
         local found_address_ok, found_address = pcall(function() return found:GetAddress() end)
         if not found_address_ok or found_address ~= address then
-            if memo ~= nil then memo[address] = false end
+            if memo ~= nil then memo[obj] = false end
             return false
         end
-        if memo ~= nil then memo[address] = true end
+        if memo ~= nil then memo[obj] = true end
         return true
     end
     local ok, result = pcall(function() return obj:IsValid() end)
@@ -112,9 +112,9 @@ local function is_valid(obj)
     local name_ok, full_name = pcall(function() return obj:GetFullName() end)
     if name_ok and type(full_name) == 'string' then
         local object_path = full_name:match('^[^ ]+ (.+)$')
-        if object_path ~= nil then PCL151714_OBJECT_PATHS[address] = object_path end
+        if object_path ~= nil then PCL151714_OBJECT_PATHS[obj] = object_path end
     end
-    if memo ~= nil then memo[address] = true end
+    if memo ~= nil then memo[obj] = true end
     return true
 end
 
@@ -20891,7 +20891,7 @@ PCL15175_TRACE_SEEN = {}
 PCL15177_FORGE_ACTIVE = false
 PCL15177_TRACE_CALLBACKS = false
 function pcl15177_reset_forge_references()
-    if type(pcl151762_cleanup_home)=='function' then pcl151762_cleanup_home() end
+    if type(pcl151762_cleanup_home)=='function' then pcall(pcl151762_cleanup_home) end
     if type(pcl151760_release_input)=='function' then pcl151760_release_input('forge_reset') end
     PCL151745_OPEN=nil
     PCL151724_PREVIEWS={}
@@ -20901,7 +20901,10 @@ function pcl15177_reset_forge_references()
     if PCL151710_MENU_STATE ~= nil then
         for _, name in ipairs({'panel','launcher','close','dismiss'}) do
             local widget = PCL151710_MENU_STATE[name]
-            if is_valid(widget) then pcall(function() widget:RemoveFromParent() end) end
+            if is_valid(widget) then
+                if name=='panel' then PCL151723_UI[widget:GetAddress()]=nil end
+                pcall(function() widget:SetVisibility(1);widget:RemoveFromParent() end)
+            end
         end
         PCL151710_MENU_STATE = nil
     end
@@ -20924,7 +20927,6 @@ function pcl15177_live_forge()
     local catalogues = pcl15171_find_catalogues()
     local active = #catalogues > 0
     if active ~= PCL15177_FORGE_ACTIVE then
-        if not active then pcl15177_reset_forge_references() end
         PCL15177_FORGE_ACTIVE = active
         log('PCL15_17_7_FORGE_LIFECYCLE active=' .. tostring(active))
     end
@@ -21818,8 +21820,6 @@ end
 
 function pcl15171_load_library()
     PCL15171_LIBRARY = {}
-
-    pcl15171_ensure_library_dir()
 
     local f = nil
     pcall(function()
@@ -22752,23 +22752,15 @@ function pcl15171_submit_magic(panel)
             true -- library only; placement is an explicit Place build action
         )
 
+    pcl15171_set_magic_visible(panel, false)
+    pcall(function() input:SetText(pcl15171_to_text('')) end)
+
     if download_ok then
         pcl15171_set_status(
             panel,
             (PCL151719_IMPORT and 'Saving build to library: ' .. tostring(code)
                 or 'Build is saved locally. Choose Place build when ready.')
         )
-
-        pcl15171_set_magic_visible(
-            panel,
-            false
-        )
-
-        pcall(function()
-            input:SetText(
-                pcl15171_to_text('')
-            )
-        end)
 
         log('PCL15_17_1_MAGIC_SUBMIT code=' ..
             tostring(code) ..
@@ -22799,17 +22791,37 @@ function pcl15171_click_anchor(panel)
         local handling,held=current_preview_14()
         assert(is_valid(handling),'Active part handling unavailable')
         assert(not is_valid(held),'Place the held item before selecting another anchor')
+        if BMF_PCL_FRAMEWORK.GetCompatibilityProfile()=='main-26400894-anchor-test' then
+            local menu=PCL151710_MENU_STATE
+            if PCL151745_OPEN and PCL151745_OPEN.anchor then return end
+            if not pcl151761_prepare_parts_stage(forge) then
+                local request={state=menu,forge=forge,checks=0,anchor=true}
+                PCL151745_OPEN=request
+                pcl15179_schedule(100,function() pcl151745_open_tick(request) end)
+                return
+            end
+        end
         local ready,ready_err=pcl15166_ensure_current_anchor('forge_library_anchor')
         assert(ready,tostring(ready_err))
-        local button,button_err=pcl151719_active_anchor_button(forge)
-        assert(is_valid(button),tostring(button_err))
         local request={panel=panel,forge=forge,handling=handling,checks=0}
         PCL151742_ANCHOR_REQUEST=request
-        local clicked,click_err=pcl15165_click_exact_anchor_tile(button)
-        assert(clicked,tostring(click_err))
+        if BMF_PCL_FRAMEWORK.GetCompatibilityProfile()=='main-26400894-anchor-test' then
+            local anchor,spawn_error=pcl151728_spawn_anchor(request)
+            assert(is_valid(anchor),tostring(spawn_error))
+            handling.BestSwordPartSlotParent=nil
+            handling.PreviewSwordPartActor=anchor
+            local _,assigned=current_preview_14()
+            assert(is_valid(assigned) and assigned:GetAddress()==anchor:GetAddress(),'Anchor handoff did not persist')
+        else
+            local button,button_err=pcl151719_active_anchor_button(forge)
+            assert(is_valid(button),tostring(button_err))
+            local clicked,click_err=pcl15165_click_exact_anchor_tile(button)
+            assert(clicked,tostring(click_err))
+        end
         pcl151742_finish_anchor(request)
     end)
     if not ok then
+        pcl151742_discard_spawn(PCL151742_ANCHOR_REQUEST)
         PCL151742_ANCHOR_REQUEST=nil
         pcl151741_message(panel,'Place anchor failed: '..tostring(err))
     end
@@ -23147,23 +23159,40 @@ function pcl151710_set_menu_visible(visible)
     if visible then
         local forge=find_forge()
         if not is_valid(forge) then pcl151741_message(state.panel,'Open the Forge first.');return end
-        local prepared,ready=pcall(pcl151717_prepare_hilt,forge)
-        if not prepared then pcl151741_message(state.panel,'Could not select Hilt mode: '..tostring(ready));return end
+        local prepared,ready=true,false
+        local pending=PCL151745_OPEN
+        local mode=PCL151761_MODE
+        if pending and pending.state==state and pending.ready and pending.mode==mode and
+            is_valid(pending.forge) and pending.forge:GetAddress()==forge:GetAddress() then
+            ready=true
+        else
+            local prepare=mode=='blades' and pcl15181_prepare_blade or pcl151717_prepare_hilt
+            prepared,ready=pcall(prepare,forge)
+        end
+        if not prepared then pcl151741_message(state.panel,'Could not select Forge mode: '..tostring(ready));return end
         if not ready then
             if not PCL151745_OPEN or PCL151745_OPEN.state~=state then
-                local request={state=state,forge=forge,checks=0}
+                local request={state=state,forge=forge,checks=0,mode=mode}
                 PCL151745_OPEN=request
                 pcl15179_schedule(100,function() pcl151745_open_tick(request) end)
             end
             return
         end
         PCL151745_OPEN=nil
-        pcl15171_refresh_dynamic(state.panel)
-        pcl151727_queue_previews(state.panel)
-        local recovery_state=PCL151723_UI[state.panel:GetAddress()]
-        if recovery_state and is_valid(recovery_state.recovery) then
-            recovery_state.recovery:SetIsEnabled(not PCL151741_BATCH and pcl151727_draft()~=nil)
-        end
+        pcl15179_schedule(50,function()
+            if PCL151710_MENU_STATE~=state or not state.open or not is_valid(state.panel) then return end
+            local started=os.clock()
+            local recovery_state=PCL151723_UI[state.panel:GetAddress()]
+            -- An already rendered empty list has no rows or previews to rebuild.
+            if #PCL15171_LIBRARY>0 or not recovery_state or #(recovery_state.entries or {})>0 then
+                pcl15171_refresh_dynamic(state.panel)
+                pcl151727_queue_previews(state.panel)
+            end
+            if recovery_state and is_valid(recovery_state.recovery) then
+                recovery_state.recovery:SetIsEnabled(not PCL151741_BATCH and pcl151727_draft()~=nil)
+            end
+            log('PCL_FORGE_UI_TIMING refresh='..string.format('%.3f',os.clock()-started))
+        end)
         -- Recovery drafts remain available through an explicit ribbon action.
         -- Merely opening the library must never open the upload form.
 
@@ -23171,8 +23200,10 @@ function pcl151710_set_menu_visible(visible)
     state.open = visible
     if visible then pcl151737_start_holds()
     else for _,action in pairs(PCL151737_HOLDS) do pcl151737_reset_hold(action) end end
+    local show_started=os.clock()
     state.panel:SetVisibility(visible and 0 or 1)
     if is_valid(state.close) then state.close:SetVisibility(visible and 0 or 1) end
+    local shown=os.clock()
     local player = nil
     pcall(function() player = state.catalogue:GetOwningPlayer() end)
     local lib = pcl15171_widget_library()
@@ -23189,6 +23220,8 @@ function pcl151710_set_menu_visible(visible)
         if not ok then log('PCL15_17_10_INPUT_MODE_ERROR=' .. tostring(err)) end
     end
     log('PCL15_17_10_MENU_VISIBLE=' .. tostring(visible))
+    if visible then log('PCL_FORGE_UI_TIMING visibility='..string.format('%.3f',shown-show_started)
+        ..' input='..string.format('%.3f',os.clock()-shown)) end
 end
 
 function pcl151710_menu_button(catalogue, panel, label, kind, width)
@@ -23587,8 +23620,8 @@ function pcl151731_fresh(obj)
     if obj==nil then return end
     local ok,address=pcall(function() return obj:GetAddress() end)
     if not ok or not address or address==0 then return end
-    PCL151714_OBJECT_PATHS[address]=nil
-    if PCL151715_VALIDATION_CACHE then PCL151715_VALIDATION_CACHE[address]=nil end
+    PCL151714_OBJECT_PATHS[obj]=nil
+    if PCL151715_VALIDATION_CACHE then PCL151715_VALIDATION_CACHE[obj]=nil end
     if PCL151731_SERIALS then PCL151731_SERIALS[obj]=nil end
 end
 
@@ -23714,7 +23747,12 @@ function pcl151726_restore(request,before)
         used=true
         return bridge.rebuild(host_addr,piece_addr,request.forge:GetAddress(),request.gm:GetAddress())
     end}
-    if not request.skip_metadata then pcl151724_capture_metadata(request) end
+    local metadata=PCL151724_META[request.code]
+    local preview=PCL151724_PREVIEWS[request.code]
+    if not request.skip_metadata and
+        (not metadata or not metadata.original or not preview or not is_valid(preview.texture)) then
+        pcl151724_capture_metadata(request)
+    end
     log('PCL15_17_26_CACHE_HIT code='..request.code..' parts='..tostring(#piece.WeaponDesignDefinition.AppliedSwordParts)..' http=false')
 end
 
@@ -23801,6 +23839,28 @@ function pcl151728_recovery_anchor(request)
         log('PCL15_17_28_ANCHOR_SHELL_REUSED')
         return draft.anchor_shell,nil
     end
+    local anchor,err=pcl151728_spawn_anchor(request)
+    if not is_valid(anchor) then return nil,err end
+    draft.anchor_shell=anchor
+    log('PCL15_17_28_RECOVERY_ANCHOR_SPAWNED catalogue_click=false')
+    return anchor,nil
+end
+
+function pcl151742_discard_spawn(request)
+    if not request or not is_valid(request.anchor) then return end
+    local anchor=request.anchor
+    request.anchor=nil
+    pcall(function()
+        local handling=request.handling
+        if is_valid(handling) and is_valid(handling.PreviewSwordPartActor)
+            and handling.PreviewSwordPartActor:GetAddress()==anchor:GetAddress() then
+            handling.PreviewSwordPartActor=nil
+        end
+    end)
+    pcall(function() anchor:K2_DestroyActor() end)
+end
+
+function pcl151728_spawn_anchor(request)
     -- A recovery after restart has no live shell. Spawn the existing cooked
     -- anchor Blueprint directly; do not depend on catalogue selection/filter.
     local ok,actor=pcall(function()
@@ -23818,15 +23878,18 @@ function pcl151728_recovery_anchor(request)
         deferred.Scale=1;deferred.bPending=true
         deferred.Deflection.X=0;deferred.Deflection.Y=0;deferred.Deflection.Z=0;deferred.Deflection.W=1
         local anchor=gameplay:FinishSpawningActor(deferred,transform,2)
+        if is_valid(anchor) then request.anchor=anchor end
         assert(is_valid(anchor) and pcl15167_is_exact_anchor_actor(anchor),'Recovery anchor identity mismatch')
         local applied,apply_err=pcl15170_apply_mesh_to_actor(anchor)
         assert(applied,tostring(apply_err))
         anchor:SetActorHiddenInGame(true)
-        draft.anchor_shell=anchor
-        log('PCL15_17_28_RECOVERY_ANCHOR_SPAWNED catalogue_click=false')
+        request.anchor=anchor
         return anchor
     end)
-    if not ok then return nil,tostring(actor) end
+    if not ok then
+        pcl151742_discard_spawn(request)
+        return nil,tostring(actor)
+    end
     return actor,nil
 end
 function pcl151728_suspend_form(panel,message)
@@ -23907,7 +23970,6 @@ end
 PCL151727_DRAFT=nil
 PCL151727_PREVIEW_QUEUE=nil
 function pcl151727_manifest()
-    pcl15171_ensure_library_dir()
     return PCL15171_LIBRARY_DIR..'upload_draft.index'
 end
 function pcl151727_draft()
@@ -24005,6 +24067,7 @@ function pcl151726_prompt_upload(panel)
             local saved,save_err=pcl151726_save(draft.code,draft.piece)
             assert(saved,'Temporary save failed; hand kept: '..tostring(save_err))
             pcl151729_archive_draft(previous)
+            pcl15171_ensure_library_dir()
             local file,open_err=io.open(pcl151727_manifest(),'w')
             assert(file,'Temporary recovery record failed; hand kept: '..tostring(open_err))
             assert(file:write(draft.code..'\n'));assert(file:close())
@@ -24146,7 +24209,9 @@ function pcl151730_extra_line_ids(interaction,host,frontend)
     if not is_valid(interaction) then return {} end
     local class=StaticFindObject('/Script/Bladesong.BladeInteractionComponent')
     if not is_valid(class) or not interaction:IsA(class) then return {} end
-    local status,a,b,c,d=pcl151726_bridge().lines(interaction:GetAddress(),host:GetAddress(),frontend:GetAddress())
+    local available,bridge=pcall(pcl151726_bridge)
+    if not available then return nil end
+    local status,a,b,c,d=bridge.lines(interaction:GetAddress(),host:GetAddress(),frontend:GetAddress())
     if status~=1 then log('PCL15_17_30_LINE_READ_REFUSED '..tostring(status));return {} end
     local ids={}
     for _,address in ipairs({a,b,c,d}) do if address and address~=0 then ids[address]=true end end
@@ -24248,10 +24313,12 @@ function pcl151114_quarantine_temp_presentation(temp)
     end
     local matched=0
     local line_seen={}
-    for _,class_name in ipairs({'LineRenderer','BP_LineRenderer_C','BP_TutorialBladeShapeLineRenderer_C'}) do
-        for _,line in ipairs(FindAllOf(class_name) or {}) do
-            if is_valid(line) and ids[line:GetAddress()] and not active_ids[line:GetAddress()] and not line_seen[line:GetAddress()] then
-                line_seen[line:GetAddress()]=true;add(line);matched=matched+1
+    if ids and active_ids and next(ids) then
+        for _,class_name in ipairs({'LineRenderer','BP_LineRenderer_C','BP_TutorialBladeShapeLineRenderer_C'}) do
+            for _,line in ipairs(FindAllOf(class_name) or {}) do
+                if is_valid(line) and ids[line:GetAddress()] and not active_ids[line:GetAddress()] and not line_seen[line:GetAddress()] then
+                    line_seen[line:GetAddress()]=true;add(line);matched=matched+1
+                end
             end
         end
     end
@@ -24485,6 +24552,18 @@ end
 
 function pcl15171_inject_catalogue(catalogue)
     if not is_valid(catalogue) then return false end
+    local state=PCL151710_MENU_STATE
+    local forge=find_forge()
+    if not is_valid(forge) then return false end
+    local forge_address=forge:GetAddress()
+    local frontend=forge.ForgeModeFrontend
+    local ui=is_valid(frontend) and frontend.ForgeModeUi or nil
+    if not is_valid(ui) then return false end
+    local ui_address=ui:GetAddress()
+    if state and (state.forge_address~=forge_address or state.forge_ui_address~=ui_address
+        or not is_valid(state.panel) or not is_valid(state.launcher)) then
+        pcl15177_reset_forge_references()
+    end
     if PCL151710_MENU_STATE ~= nil and is_valid(PCL151710_MENU_STATE.panel) then
         -- Use a freshly enumerated catalogue; Forge can replace this child
         -- without loading a new map, leaving the old Lua wrapper behind.
@@ -24496,8 +24575,15 @@ function pcl15171_inject_catalogue(catalogue)
         end
         return true
     end
-    local panel = pcl15171_create_panel(catalogue)
-    if not is_valid(panel) then return false end
+    local retry=PCL15171_FORGE_RETRY
+    if retry and retry.ui==ui_address and os.time()<retry.until_time then return false end
+    local ok,panel=pcall(pcl15171_create_panel,catalogue)
+    if not ok or not is_valid(panel) then
+        PCL15171_FORGE_RETRY={ui=ui_address,until_time=os.time()+2}
+        if not ok then log('PCL_FORGE_PANEL_RETRY '..tostring(panel)) end
+        return false
+    end
+    PCL15171_FORGE_RETRY=nil
     -- Keep the library out of SwordPartButtonContainer. All three widgets are
     -- viewport-owned so closing the library cannot disturb catalogue layout.
     local root = pcl15171_widget_by_name(panel, 'PCL_Root')
@@ -24513,7 +24599,7 @@ function pcl15171_inject_catalogue(catalogue)
     end
     PCL151710_MENU_STATE = {
         panel=panel,launcher=launcher,close=close,catalogue=catalogue,open=false,
-        native_launcher=true,icon=icon
+        native_launcher=true,icon=icon,forge_address=forge_address,forge_ui_address=ui_address
     }
     pcall(pcl151727_draft)
     panel:SetVisibility(1)
@@ -24522,9 +24608,28 @@ function pcl15171_inject_catalogue(catalogue)
     pcl151710_position_widget(panel, 800, 516, 150, 100)
     pcl151723_resize(panel)
     log('PCL15_17_12_PANEL_POSITION_DONE')
-    pcl15171_hide_stock_anchor_tile()
+    if BMF_PCL_FRAMEWORK.GetCompatibilityProfile()~='main-26400894-anchor-test' then
+        pcl15171_hide_stock_anchor_tile()
+    end
     log('PCL15_17_10_LIBRARY_LAUNCHER_READY location=top_right')
     return true
+end
+
+function pcl15171_active_catalogue(ui,frontend)
+    local ok,catalogue=pcall(function() return ui.SwordPartCatalogue end)
+    if ok and is_valid(catalogue) then return catalogue end
+    -- The new catalogue stores the frontend that owns it.
+    local match=nil
+    for _,candidate in ipairs(FindAllOf('UWSwordPartCatalogue') or {}) do
+        if is_valid(candidate) then
+            local valid,owner=pcall(function() return candidate.ForgeModeFrontend end)
+            if valid and is_valid(owner) and owner:GetAddress()==frontend:GetAddress() then
+                if match then return nil end
+                match=candidate
+            end
+        end
+    end
+    return match
 end
 
 function pcl15171_find_catalogues()
@@ -24536,40 +24641,42 @@ function pcl15171_find_catalogues()
         if not is_valid(frontend) then return end
         local ui=frontend.ForgeModeUi
         if not is_valid(ui) or not is_valid(ui.ForgeMode) or ui.ForgeMode:GetAddress()~=forge:GetAddress() then return end
-        local catalogue=ui.SwordPartCatalogue
-        if is_valid(catalogue) then out[1]=catalogue end
+        if BMF_PCL_FRAMEWORK.GetCompatibilityProfile()=='main-26400894-anchor-test' then
+            out[1]=ui
+            return
+        end
+        local catalogue=pcl15171_active_catalogue(ui,frontend)
+        if is_valid(catalogue) then
+            out[1]=catalogue
+        elseif is_valid(ui.SwordPartCatalogueParent) then
+            -- The reworked catalogue is hosted by the Forge UI. The launcher
+            -- only needs the owning widget and finds its toolbar separately.
+            out[1]=ui
+        end
     end)
     return out
 end
 
 function pcl15171_monitor_tick()
+    -- The Forge toolbar and Creative home can be rebuilt independently.
+    -- A transient error in one screen must not prevent the other from returning.
     run_game_thread(function()
         if pcl15171_load_widget_assets() then
-            -- Input is routed by the press/release monitor. Focus changes alone
-            -- must not activate controls, and no OnClicked delegate is mutated.
-
-            local catalogues =
-                pcl15171_find_catalogues()
-
-            if PCL15174_CATALOGUE_COUNT ~= #catalogues then
-                PCL15174_CATALOGUE_COUNT = #catalogues
-                log('PCL15_17_4_UI_READY catalogue_count=' .. tostring(#catalogues))
+            local catalogues=pcl15171_find_catalogues()
+            if PCL15174_CATALOGUE_COUNT~=#catalogues then
+                PCL15174_CATALOGUE_COUNT=#catalogues
+                log('PCL15_17_4_UI_READY catalogue_count='..tostring(#catalogues))
             end
-
-            for _, catalogue in ipairs(catalogues) do
-                pcl15171_inject_catalogue(
-                    catalogue
-                )
+            for _,catalogue in ipairs(catalogues) do
+                pcl15171_inject_catalogue(catalogue)
             end
         end
-        pcl151751_update_hint()
-        pcl151762_monitor_home()
     end)
-
-    pcl15179_schedule(
-        500,
-        pcl15171_monitor_tick
-    )
+    if os.clock()>=(PCL151760_FORGE_ENTRY_UNTIL or 0) then
+        run_game_thread(pcl151762_monitor_home)
+    end
+    run_game_thread(pcl151751_update_hint)
+    pcl15179_schedule(500,pcl15171_monitor_tick)
 end
 
 function pcl15171_start_monitor()
@@ -25005,17 +25112,26 @@ function pcl151719_active_anchor_button(forge)
     if not is_valid(ui) or not is_valid(ui.ForgeMode) or ui.ForgeMode:GetAddress()~=forge:GetAddress() then
         return nil,'active Forge UI ownership mismatch'
     end
-    local catalogue=ui.SwordPartCatalogue
-    if not is_valid(catalogue) then return nil,'active Forge catalogue unavailable' end
-    local path=safe_full_name(catalogue):match('^%S+ (.+)$')
-    if not path then return nil,'active catalogue path unavailable' end
+    local ok,catalogue=pcall(function() return ui.SwordPartCatalogue end)
+    local path=ok and is_valid(catalogue) and safe_full_name(catalogue):match('^%S+ (.+)$')
+    local match=nil
     for _,button in ipairs(find_live_part_buttons_9()) do
-        if is_valid(button) and safe_full_name(button):find(path..'.',1,true) then
+        local belongs=path and safe_full_name(button):find(path..'.',1,true)
+        if not path then
+            local valid,owner=pcall(function() return button.ForgeModeFrontendPtr end)
+            belongs=valid and is_valid(owner) and owner:GetAddress()==frontend:GetAddress()
+                and is_valid(button:GetParent())
+        end
+        if belongs then
             local row,table_name=pcl15165_button_handle_info(button)
-            if row==PCL15161_ROW_NAME and table_name==PCL15165_DEV_TABLE_FULL then return button,nil end
+            if row==PCL15161_ROW_NAME and table_name==PCL15165_DEV_TABLE_FULL then
+                if match then return nil,'multiple anchor tiles belong to the active Forge' end
+                match=button
+            end
         end
     end
-    return nil,'anchor tile is not present in the active Forge catalogue'
+    if match then return match,nil end
+    return nil,'anchor tile is not present on the active parts page'
 end
 
 function pcl151719_finish(request)
@@ -25036,6 +25152,8 @@ function pcl151719_finish(request)
     local anchor,anchor_err
     if request.restore_upload then
         anchor,anchor_err=pcl151728_recovery_anchor(request)
+    elseif BMF_PCL_FRAMEWORK.GetCompatibilityProfile()=='main-26400894-anchor-test' then
+        anchor,anchor_err=pcl151728_spawn_anchor({forge=forge,handling=handling})
     else
         local button,button_err=pcl151719_active_anchor_button(forge)
         if not is_valid(button) then return false,button_err end
@@ -25223,9 +25341,13 @@ function pcl15171_download_magic(context,code,refresh,library_only)
         return true,nil
     end
     if not refresh and pcl151726_has_cache(code) then
-        PCL151719_IMPORT={context=context,code=code,forge=forge,ticks=0,armed=false,local_cache=true}
-        pcl15179_schedule(100,pcl151719_tick)
-        return true,nil
+        local cache_ready,cache_error=pcall(pcl151726_bridge)
+        if cache_ready then
+            PCL151719_IMPORT={context=context,code=code,forge=forge,ticks=0,armed=false,local_cache=true}
+            pcl15179_schedule(1,pcl151719_tick)
+            return true,nil
+        end
+        log('PCL_LOCAL_CACHE_UNAVAILABLE using_magic_word=true reason='..tostring(cache_error))
     end
     local bridge, err = pcl151719_bridge()
     if bridge == nil then return false, tostring(err) end
@@ -25535,6 +25657,7 @@ function pcl151742_finish_anchor(request)
         if PCL151710_MENU_STATE and PCL151710_MENU_STATE.open then pcl151710_set_menu_visible(false) end
     end)
     if not ok then
+        pcl151742_discard_spawn(request)
         PCL151742_ANCHOR_REQUEST=nil
         pcl151741_message(request.panel,'Place anchor failed: '..tostring(err))
     end
@@ -25588,14 +25711,26 @@ function pcl151745_open_tick(request)
         PCL151745_OPEN=nil;return
     end
     request.checks=request.checks+1
-    local ok,ready=pcall(pcl151717_prepare_hilt,forge)
+    local prepare=request.anchor and pcl151761_prepare_parts_stage
+        or (request.mode=='blades' and pcl15181_prepare_blade or pcl151717_prepare_hilt)
+    local ok,ready=pcall(prepare,forge)
     if not ok or request.checks>=100 then
         PCL151745_OPEN=nil
-        pcl151741_message(state.panel,not ok and ('Could not select Hilt mode: '..tostring(ready)) or 'Hilt mode did not become ready.')
+        local stage=request.mode=='blades' and 'Blade' or 'Hilt'
+        pcl151741_message(state.panel,not ok and ('Could not select '..stage..' mode: '..tostring(ready)) or stage..' mode did not become ready.')
         return
     end
-    if ready then pcl151710_set_menu_visible(true)
-    else pcl15179_schedule(100,function() pcl151745_open_tick(request) end) end
+    if ready then
+        if request.anchor then
+            PCL151745_OPEN=nil
+            if state.open then pcl15171_click_anchor(state.panel) end
+        else
+            request.ready=true
+            pcl151710_set_menu_visible(true)
+        end
+    else
+        pcl15179_schedule(100,function() pcl151745_open_tick(request) end)
+    end
 end
 
 -- Red camera line art on the native cube's -X face. One instanced component,
@@ -25905,12 +26040,10 @@ function pcl151756_prepare_anchor(reason)
     log('PCL15_17_56_ANCHOR_READY before_rebuild=true reason='..tostring(reason))
     return true,nil
 end
-function pcl151756_rebind_saved_anchors(piece)
+function pcl151756_rebind_saved_anchors(piece,context)
     if not is_valid(piece) then return 0 end
-    local class=StaticFindObject('/Script/Bladesong.Piece')
+    local class=context.class
     if not is_valid(class) or not piece:IsA(class) then return 0 end
-    local dst,err=pcl15165_exact_row(PCL15165_DEV_TABLE_FULL,PCL15161_ROW_NAME)
-    assert(dst,tostring(err))
     if not PCL151756_REBIND then
         local fn,why=BMF_PCL_NATIVE(pcl151112_script_dir()..'pcl_anchor_reload_151756.dll','pcl_anchor_rebind_piece')
         assert(type(fn)=='function','Anchor reload helper unavailable: '..tostring(why))
@@ -25918,12 +26051,21 @@ function pcl151756_rebind_saved_anchors(piece)
     end
     -- Avoid UE4SS nested transient-struct iteration in the synchronous hook.
     -- The guarded native helper touches only the two cached row-handle fields.
-    local repaired=PCL151756_REBIND(piece:GetAddress(),piece:GetClass():GetAddress(),dst.data_table:GetAddress(),dst.data_table:GetClass():GetAddress(),pcl15170_existing_fname(PCL15161_ROW_NAME):GetComparisonIndex())
+    local repaired=PCL151756_REBIND(piece:GetAddress(),piece:GetClass():GetAddress(),
+        context.table_address,context.table_class_address,context.name_index)
     assert(type(repaired)=='number' and repaired>=0,'Saved anchor resolution refused: '..tostring(repaired))
-    log('PCL15_17_56_ANCHOR_REBOUND count='..repaired..' topology_unchanged=true native_handle_fix=true')
     return repaired
 end
 function pcl151756_before_forge()
+    -- Drop the Creative overlays at the start of Forge entry, before the
+    -- anchor scan and before the game constructs the Forge viewport.
+    PCL151760_HOME_RETURN=nil
+    PCL151760_FORGE_ENTRY_UNTIL=os.clock()+0.25
+    if PCL151762_HOME then
+        local ok,err=pcall(pcl151762_cleanup_home)
+        if not ok then log('PCL_CREATIVE_ENTRY_CLEANUP_ERROR '..tostring(err)) end
+    end
+    local started=os.clock()
     local ok,err=pcall(function()
         local ready,why=pcl151756_prepare_anchor('before_EnterForgeMode')
         assert(ready,tostring(why))
@@ -25932,7 +26074,20 @@ function pcl151756_before_forge()
         -- actual typed data objects once at the load boundary instead.
         local pieces=FindAllOf('Piece') or {}
         assert(#pieces<=1024,'Too many loaded Piece objects for synchronous anchor resolution')
-        for _,piece in ipairs(pieces) do pcl151756_rebind_saved_anchors(piece) end
+        if #pieces==0 then return end
+        local dst,err=pcl15165_exact_row(PCL15165_DEV_TABLE_FULL,PCL15161_ROW_NAME)
+        assert(dst and is_valid(dst.data_table),tostring(err))
+        local context={
+            class=StaticFindObject('/Script/Bladesong.Piece'),
+            table_address=dst.data_table:GetAddress(),
+            table_class_address=dst.data_table:GetClass():GetAddress(),
+            name_index=pcl15170_existing_fname(PCL15161_ROW_NAME):GetComparisonIndex()
+        }
+        local repaired=0
+        for _,piece in ipairs(pieces) do
+            repaired=repaired+pcl151756_rebind_saved_anchors(piece,context)
+        end
+        log('PCL15_17_56_ANCHOR_REBOUND count='..repaired..' pieces='..#pieces..' topology_unchanged=true seconds='..string.format('%.3f',os.clock()-started))
     end)
     if not ok then log('PCL15_17_56_ANCHOR_BOOTSTRAP_FAILED '..tostring(err)) end
 end
@@ -26105,6 +26260,8 @@ function pcl151760_before_leave()
     if PCL151760_INPUT_LOCKED or PCL151710_MENU_STATE then pcl15177_reset_forge_references() end
 end
 function pcl151760_entered_forge()
+    PCL151760_HOME_RETURN=nil
+    if not PCL151760_INPUT_LOCKED then return end
     local expected=find_forge()
     if not is_valid(expected) then return end
     local checks=0
@@ -26118,9 +26275,31 @@ function pcl151760_entered_forge()
     end
     pcl15179_schedule(1,refresh)
 end
+function pcl151760_returned_from_forge()
+    PCL151760_FORGE_ENTRY_UNTIL=nil
+    local request={}
+    PCL151760_HOME_RETURN=request
+    local attempts=0
+    local function refresh()
+        if PCL151760_HOME_RETURN~=request or PCL151762_HOME then return end
+        attempts=attempts+1
+        local ok,err=pcall(pcl151762_monitor_home)
+        if not ok then log('PCL_CREATIVE_RETURN_ERROR '..tostring(err)) end
+        if not PCL151762_HOME and attempts<8 then pcl15179_schedule(16,refresh) end
+    end
+    pcl15179_schedule(1,refresh)
+end
+function pcl151760_home_shown()
+    if not PCL151759_SCRIPT_READY then return end
+    -- The game's home transition has just finished. Mount the library before
+    -- returning to the frame, with the normal monitor available if UI is late.
+    local ok,err=pcall(pcl151762_monitor_home)
+    if not ok then log('PCL_CREATIVE_RETURN_ERROR '..tostring(err)) end
+end
 function pcl151760_install_hooks()
     for _,spec in ipairs({
-        {'/Script/Bladesong.BladesongGameMode:LeaveAnyMode',pcl151760_before_leave,function()end},
+        {'/Script/Bladesong.BladesongGameMode:GoToHomeScreen',function()end,pcl151760_home_shown},
+        {'/Script/Bladesong.BladesongGameMode:LeaveAnyMode',pcl151760_before_leave,pcl151760_returned_from_forge},
         {'/Script/Bladesong.BladesongGameMode:EnterForgeMode',pcl151760_before_leave,pcl151760_entered_forge}
     }) do
         local ok,err=pcall(function()RegisterHook(spec[1],spec[2],spec[3])end)
@@ -26168,6 +26347,9 @@ function pcl151726_slot(code)
     return PCL151761_MODE=='blades' and slot:gsub('^PCL26_','PCLB61_') or slot
 end
 PCL151761_HILT=pcl151717_prepare_hilt
+function pcl151761_prepare_parts_stage(forge)
+    return PCL151761_HILT(forge)
+end
 function pcl151717_prepare_hilt(forge)
     if PCL151761_MODE=='blades' then return is_valid(forge) end
     return PCL151761_HILT(forge)
@@ -26233,16 +26415,9 @@ function pcl151761_switch(panel,mode)
         local state=PCL151723_UI[panel:GetAddress()]
         assert(not PCL151719_IMPORT and not PCL151725_UPLOAD_PENDING and not PCL151741_BATCH and not PCL151729_HANDOFF,'Finish the current import or upload first.')
         assert(not state.magic_open and not pcl151727_draft(),'Finish or cancel the current form before switching tabs.')
-        if mode=='blades' then
-            local path=PCL151761_BLADE_DIR:gsub('[\\/]$','')
-            local args={#path};for i=1,#path do args[#args+1]=path:byte(i) end
-            assert(pcl151761_bridge().mkdir(table.unpack(args))==1,'Could not create the blade library folder')
-        end
         PCL151761_MODE=mode
         PCL15171_LIBRARY_DIR=mode=='blades' and PCL151761_BLADE_DIR or PCL151761_PARTS_DIR
         PCL15171_LIBRARY_PATH=mode=='blades' and (PCL15171_LIBRARY_DIR..'library.index') or PCL151761_PARTS_PATH
-        -- The directory is already verified by native mkdir or the parts index.
-        PCL151758_LIBRARY_DIR_READY=PCL15171_LIBRARY_DIR
         PCL151727_PREVIEW_QUEUE=nil;PCL151724_PREVIEWS={};PCL151730_PREVIEW_CHECKED={}
         pcl15171_load_library();pcl151724_load_metadata()
         pcl15171_refresh_dynamic(panel);pcl151727_queue_previews(panel)

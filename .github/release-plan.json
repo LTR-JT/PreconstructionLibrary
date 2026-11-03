@@ -1,5 +1,5 @@
 {
   "publish": true,
-  "version": "15.18.3",
-  "reason": "Approved publication: include PCL-owned cooked assets in both installation packages"
+  "version": "15.18.4",
+  "reason": "Publish Forge tab and cached prefab placement fixes"
 }

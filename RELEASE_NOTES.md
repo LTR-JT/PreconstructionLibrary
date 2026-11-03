@@ -1,11 +1,6 @@
-Preconstruction Library 15.18.3
+## Preconstruction Library 15.18.4
 
-Fixes installation through Mods > Browse.
-
-- Both the in-game package and manual download include the required anchor/UI assets and asset-only loader configuration.
-- PCL owns these assets; they are not a framework requirement.
-- Manual packages include matching installation metadata.
-- Existing library and save locations are retained.
-
-Requires Bladesong Mod Framework 0.1.4 or later and compatible UE4SS.
-Use Runtime.zip for manual installation. BMF.zip is the in-game install package.
+- Restores Parts prefab pickup on Bladesong Main build 26400894 with Framework 0.1.12.
+- Loads repeat placements from the local cache and removes the extra wait before restoring a cached prefab.
+- Switches Forge mode when opening the library or changing between Parts and Blades.
+- Includes the anchor and library UI assets. On Main build 26400894, native blade operations and upload are pending a separate port.
