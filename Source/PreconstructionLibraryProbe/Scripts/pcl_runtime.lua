@@ -5,6 +5,10 @@ local root=scripts..'../../shared/BladesongFramework/'
 local framework=assert(loadfile(root..'api.lua'))(root)
 BMF_PCL_ROOT=root;BMF_PCL_FRAMEWORK=framework
 assert(framework.BindMod('PreconstructionLibraryProbe'))
+function BMF_PCL_DIRECT_ANCHOR()
+ local profile=framework.GetCompatibilityProfile()
+ return profile=='main-26400894-anchor-test' or profile=='main-26433453'
+end
 function BMF_PCL_NATIVE(path,symbol)
  local name=path:match('([^/\\]+)$')
  local resolved,why=framework.GetNativeHelper(name,scripts)
@@ -22791,7 +22795,7 @@ function pcl15171_click_anchor(panel)
         local handling,held=current_preview_14()
         assert(is_valid(handling),'Active part handling unavailable')
         assert(not is_valid(held),'Place the held item before selecting another anchor')
-        if BMF_PCL_FRAMEWORK.GetCompatibilityProfile()=='main-26400894-anchor-test' then
+        if BMF_PCL_DIRECT_ANCHOR() then
             local menu=PCL151710_MENU_STATE
             if PCL151745_OPEN and PCL151745_OPEN.anchor then return end
             if not pcl151761_prepare_parts_stage(forge) then
@@ -22805,7 +22809,7 @@ function pcl15171_click_anchor(panel)
         assert(ready,tostring(ready_err))
         local request={panel=panel,forge=forge,handling=handling,checks=0}
         PCL151742_ANCHOR_REQUEST=request
-        if BMF_PCL_FRAMEWORK.GetCompatibilityProfile()=='main-26400894-anchor-test' then
+        if BMF_PCL_DIRECT_ANCHOR() then
             local anchor,spawn_error=pcl151728_spawn_anchor(request)
             assert(is_valid(anchor),tostring(spawn_error))
             handling.BestSwordPartSlotParent=nil
@@ -24608,7 +24612,7 @@ function pcl15171_inject_catalogue(catalogue)
     pcl151710_position_widget(panel, 800, 516, 150, 100)
     pcl151723_resize(panel)
     log('PCL15_17_12_PANEL_POSITION_DONE')
-    if BMF_PCL_FRAMEWORK.GetCompatibilityProfile()~='main-26400894-anchor-test' then
+    if not BMF_PCL_DIRECT_ANCHOR() then
         pcl15171_hide_stock_anchor_tile()
     end
     log('PCL15_17_10_LIBRARY_LAUNCHER_READY location=top_right')
@@ -24641,7 +24645,7 @@ function pcl15171_find_catalogues()
         if not is_valid(frontend) then return end
         local ui=frontend.ForgeModeUi
         if not is_valid(ui) or not is_valid(ui.ForgeMode) or ui.ForgeMode:GetAddress()~=forge:GetAddress() then return end
-        if BMF_PCL_FRAMEWORK.GetCompatibilityProfile()=='main-26400894-anchor-test' then
+        if BMF_PCL_DIRECT_ANCHOR() then
             out[1]=ui
             return
         end
@@ -25152,7 +25156,7 @@ function pcl151719_finish(request)
     local anchor,anchor_err
     if request.restore_upload then
         anchor,anchor_err=pcl151728_recovery_anchor(request)
-    elseif BMF_PCL_FRAMEWORK.GetCompatibilityProfile()=='main-26400894-anchor-test' then
+    elseif BMF_PCL_DIRECT_ANCHOR() then
         anchor,anchor_err=pcl151728_spawn_anchor({forge=forge,handling=handling})
     else
         local button,button_err=pcl151719_active_anchor_button(forge)

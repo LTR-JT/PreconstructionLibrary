@@ -1,6 +1,5 @@
-## Preconstruction Library 15.18.4
+## Preconstruction Library 15.18.5
 
-- Restores Parts prefab pickup on Bladesong Main build 26400894 with Framework 0.1.12.
-- Loads repeat placements from the local cache and removes the extra wait before restoring a cached prefab.
-- Switches Forge mode when opening the library or changing between Parts and Blades.
-- Includes the anchor and library UI assets. On Main build 26400894, native blade operations and upload are pending a separate port.
+- Restores Parts prefab pickup on Bladesong Main hotfix 0.3.7770 (Steam build 26433453).
+- Requires Bladesong Mod Framework 0.1.13 or a compatible update.
+- On this game build, native blade operations and upload remain unavailable.

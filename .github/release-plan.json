@@ -1,5 +1,5 @@
 {
   "publish": true,
-  "version": "15.18.4",
-  "reason": "Publish Forge tab and cached prefab placement fixes using pinned Lua source for CI"
+  "version": "15.18.5",
+  "reason": "Publish compatibility for Bladesong Main hotfix 0.3.7770 (Steam build 26433453)"
 }
