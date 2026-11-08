@@ -1,5 +1,6 @@
-## Preconstruction Library 15.18.5
+## Preconstruction Library 15.18.6
 
-- Restores Parts prefab pickup on Bladesong Main hotfix 0.3.7770 (Steam build 26433453).
-- Requires Bladesong Mod Framework 0.1.13 or a compatible update.
-- On this game build, native blade operations and upload remain unavailable.
+- Restores importing and applying blades from Magic Words on Bladesong Main build 26433453.
+- Applying a blade preserves the current hilt and attached parts.
+- Requires Bladesong Mod Framework 0.1.14 or a compatible update.
+- Upload remains unavailable on Main build 26433453.

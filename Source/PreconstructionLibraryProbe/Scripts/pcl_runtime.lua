@@ -26325,10 +26325,11 @@ function pcl151761_bridge()
         local fn,err=BMF_PCL_NATIVE(path,'pcl_cache_'..name)
         assert(type(fn)=='function',tostring(err));bridge[name]=fn
     end
-    for _,name in ipairs({'snapshot','apply','refresh','send','mkdir'}) do
+    for _,name in ipairs({'snapshot','apply','refresh','mkdir'}) do
         local fn,err=BMF_PCL_NATIVE(path,'pcl_blade_'..name)
         assert(type(fn)=='function',tostring(err));bridge[name]=fn
     end
+    bridge.send=BMF_PCL_NATIVE(path,'pcl_blade_send')
     local probe,err=BMF_PCL_NATIVE(path,'pcl_blade_probe')
     local status=type(probe)=='function' and probe()
     assert(status==1,'Blade helper refused this executable: status='..tostring(status)..' '..tostring(err))
@@ -26527,6 +26528,8 @@ end
 function pcl151761_upload(panel)
     local ok,err=pcall(function()
         assert(not PCL151719_IMPORT and not PCL151725_UPLOAD_PENDING and not PCL151741_BATCH,'Finish the current operation first')
+        local bridge=pcl151761_bridge()
+        assert(type(bridge.send)=='function','Blade upload is unavailable on this game build.')
         local previous=pcl151727_draft()
         if previous then assert(previous.blade,'Finish the current part upload first');pcl151727_show_form(panel,previous);return end
         local forge=find_forge();assert(is_valid(forge),'Open the Forge first')
@@ -26535,7 +26538,7 @@ function pcl151761_upload(panel)
         local host,gm,why=pcl151113_spawn_temp_forge(forge,source);assert(is_valid(host),tostring(why))
         PCL151725_UPLOAD_HOSTS[#PCL151725_UPLOAD_HOSTS+1]=host
         local piece=pcl151761_fresh_piece(host,source)
-        assert(pcl151761_bridge().snapshot(source:GetAddress(),piece:GetAddress(),source:GetClass():GetAddress())==1,'Blade snapshot failed')
+        assert(bridge.snapshot(source:GetAddress(),piece:GetAddress(),source:GetClass():GetAddress())==1,'Blade snapshot failed')
         piece.Name=pcl15171_to_text('Blade');host.Piece=piece
         local stamp=(tostring(os.time())..tostring(math.floor(os.clock()*1000000))):gsub('%d',function(c)return string.char(97+tonumber(c)) end)
         local draft={blade=true,code='draft-'..stamp..'-blade',name='Blade',parts=0,piece=piece,host=host,forge=forge,ui=pcl151723_references()}

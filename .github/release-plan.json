@@ -1,5 +1,5 @@
 {
   "publish": true,
-  "version": "15.18.5",
-  "reason": "Publish compatibility for Bladesong Main hotfix 0.3.7770 (Steam build 26433453)"
+  "version": "15.18.6",
+  "reason": "Restore Blade import and replacement on Bladesong Main build 26433453"
 }
