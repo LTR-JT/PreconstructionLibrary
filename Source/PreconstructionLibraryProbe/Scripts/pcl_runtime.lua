@@ -21024,6 +21024,21 @@ function pcl151723_hadd(parent,widget,fill,right)
     return slot
 end
 
+function pcl151710_library_right_inset(panel)
+    if BMF_PCL_FRAMEWORK.GetGameBranch()~='bleedingedge' then return 24 end
+    local inset=664
+    local layout=StaticFindObject('/Script/UMG.Default__WidgetLayoutLibrary')
+    if is_valid(layout) then
+        local viewport,scale=layout:GetViewportSize(panel),layout:GetViewportScale(panel)
+        if scale>0 and viewport.X>0 then inset=math.min(inset,math.max(24,viewport.X/scale-824)) end
+    end
+    return inset
+end
+
+function pcl151710_library_top()
+    return BMF_PCL_FRAMEWORK.GetGameBranch()=='bleedingedge' and 22 or 150
+end
+
 function pcl151723_resize(panel)
     local state=PCL151723_UI[panel:GetAddress()]
     if not state then return end
@@ -21039,7 +21054,7 @@ function pcl151723_resize(panel)
         if not is_valid(layout) then return end
         local viewport,scale=layout:GetViewportSize(panel),layout:GetViewportScale(panel)
         if scale>0 and viewport.Y>0 then
-            local available=viewport.Y/scale-150-220
+            local available=viewport.Y/scale-pcl151710_library_top()-220
             entries_height=math.max(120,available-base-form_height)
         end
     end)
@@ -21048,7 +21063,7 @@ function pcl151723_resize(panel)
     state.empty:SetVisibility(count==0 and 0 or 1)
     local height=base+entries_height+form_height
     panel:SetDesiredSizeInViewport({X=800,Y=height})
-    panel:SetPositionInViewport({X=-24,Y=150},false)
+    panel:SetPositionInViewport({X=-pcl151710_library_right_inset(panel),Y=pcl151710_library_top()},false)
     panel:SetAnchorsInViewport({Minimum={X=1,Y=0},Maximum={X=1,Y=0}})
     panel:SetAlignmentInViewport({X=1,Y=0})
 end
@@ -23149,7 +23164,7 @@ end
 function pcl151710_position_widget(widget, width, height, top, order)
     widget:AddToViewport(order)
     widget:SetDesiredSizeInViewport({X=width,Y=height})
-    widget:SetPositionInViewport({X=-24,Y=top}, false)
+    widget:SetPositionInViewport({X=-pcl151710_library_right_inset(widget),Y=top}, false)
     -- Both size and position setters reset anchors to the top-left. Anchors
     -- must be assigned last, otherwise negative right offsets go off-screen.
     widget:SetAnchorsInViewport({Minimum={X=1,Y=0}, Maximum={X=1,Y=0}})
@@ -24510,6 +24525,13 @@ function pcl151725_snapshot_held(chosen_name,source)
         local request={ui=ui,host=host,piece=piece,name=name,held=held,root=root,nodes=nodes,parts=#nodes,started=os.clock(),placed_source=source}
     return request
 end
+function pcl151722_position_bleedingedge_launcher(button,size)
+    button:SetDesiredSizeInViewport({X=size.X,Y=size.Y})
+    button:SetPositionInViewport({X=-(size.X*6+76),Y=22},false)
+    button:SetAnchorsInViewport({Minimum={X=1,Y=0},Maximum={X=1,Y=0}})
+    button:SetAlignmentInViewport({X=1,Y=0})
+end
+
 function pcl151722_create_launcher(catalogue,panel)
     local parent,reference=pcl151710_find_tool_row(catalogue)
     if not is_valid(reference) then return nil end
@@ -24530,21 +24552,40 @@ function pcl151722_create_launcher(catalogue,panel)
     icon:SetColorAndOpacity({R=1,G=1,B=1,A=1})
     icon:SetVisibility(4)
     button.Content:SetContent(icon)
-    pcl151722_insert_launcher(parent,button,reference)
+    local standalone=BMF_PCL_FRAMEWORK.GetGameBranch()=='bleedingedge'
+    if standalone then
+        -- The new toolbar reserves space for the game's five feature buttons.
+        button:AddToViewport(99)
+        pcl151722_position_bleedingedge_launcher(button,size)
+    else
+        pcl151722_insert_launcher(parent,button,reference)
+    end
     -- Use the native click handler, scoped to this one button. No unsafe
     -- multicast-delegate binding and no polling that can miss a short click.
     PCL15171_ACTIONS[button:GetAddress()]={kind='library_toggle',panel=panel}
     pcl151722_native_click_hook()
     log('PCL15_17_22_NATIVE_BUTTON reference='..safe_full_name(reference)..' size='..size.X..'x'..size.Y..' icon='..content_size.X..'x'..content_size.Y..' style='..safe_full_name(button:GetStyle()))
-    return button,icon
+    return button,icon,standalone
 end
 
 function pcl151711_align_launcher(state)
     if not state.native_launcher or not is_valid(state.launcher) then return false end
     local parent,reference=pcl151710_find_tool_row(state.catalogue)
-    if not is_valid(reference) then return false end
+    if not is_valid(reference) then
+        if state.standalone_launcher then state.launcher:SetVisibility(1) end
+        return false
+    end
     local size=reference:GetDesiredSize()
     if size.X<=0 or size.Y<=0 then return false end
+    if state.standalone_launcher then
+        if state.launcher_size~=size.X then
+            pcl151722_position_bleedingedge_launcher(state.launcher,size)
+            state.launcher_size=size.X
+        end
+        local visibility=parent:IsVisible() and 0 or 1
+        if state.launcher:GetVisibility()~=visibility then state.launcher:SetVisibility(visibility) end
+        return true
+    end
     local toolbar_item=is_valid(state.launcher_wrap) and state.launcher_wrap or state.launcher
     if not is_valid(toolbar_item:GetParent()) or toolbar_item:GetParent():GetAddress()~=parent:GetAddress() then
         toolbar_item:RemoveFromParent()
@@ -24595,7 +24636,7 @@ function pcl15171_inject_catalogue(catalogue)
         root:SetWidthOverride(800)
         root:SetMaxDesiredWidth(800)
     end
-    local launcher, icon = pcl151722_create_launcher(catalogue, panel)
+    local launcher, icon, standalone = pcl151722_create_launcher(catalogue, panel)
     local close = PCL151723_UI[panel:GetAddress()].close
     if not is_valid(launcher) or not is_valid(close) then
         log('PCL15_17_10_MENU_CREATE_ERROR=launcher_or_close_missing')
@@ -24603,13 +24644,13 @@ function pcl15171_inject_catalogue(catalogue)
     end
     PCL151710_MENU_STATE = {
         panel=panel,launcher=launcher,close=close,catalogue=catalogue,open=false,
-        native_launcher=true,icon=icon,forge_address=forge_address,forge_ui_address=ui_address
+        native_launcher=true,standalone_launcher=standalone,icon=icon,forge_address=forge_address,forge_ui_address=ui_address
     }
     pcall(pcl151727_draft)
     panel:SetVisibility(1)
     close:SetVisibility(1)
     log('PCL15_17_12_PANEL_POSITION_BEGIN')
-    pcl151710_position_widget(panel, 800, 516, 150, 100)
+    pcl151710_position_widget(panel, 800, 516, pcl151710_library_top(), 100)
     pcl151723_resize(panel)
     log('PCL15_17_12_PANEL_POSITION_DONE')
     if not BMF_PCL_DIRECT_ANCHOR() then

@@ -1,6 +1,5 @@
-## Preconstruction Library 15.18.6
+## Preconstruction Library 15.18.7
 
-- Restores importing and applying blades from Magic Words on Bladesong Main build 26433453.
-- Applying a blade preserves the current hilt and attached parts.
-- Requires Bladesong Mod Framework 0.1.14 or a compatible update.
-- Upload remains unavailable on Main build 26433453.
+- Moves the PCL launcher beside the Bleeding Edge Forge toolbar so the game buttons stay on one row.
+- Moves the library to the top edge and left of the launcher and stock Sword Parts panel.
+- Main keeps its existing Forge library layout.

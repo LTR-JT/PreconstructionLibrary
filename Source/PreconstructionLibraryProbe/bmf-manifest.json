@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "PreconstructionLibraryProbe",
   "name": "Preconstruction Library",
-  "version": "15.18.6",
+  "version": "15.18.7",
   "author": "LTR-JT and contributors",
   "api": "^1.0.0",
   "dependencies": {
